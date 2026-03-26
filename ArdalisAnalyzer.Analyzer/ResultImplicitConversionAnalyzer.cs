@@ -29,36 +29,28 @@ namespace ArdalisAnalyzer.Analyzer
             context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
             context.EnableConcurrentExecution();
 
-            // Catch: string name = result;
+            // Catch: name = result;
             context.RegisterSyntaxNodeAction(AnalyzeAssignment,
                 SyntaxKind.SimpleAssignmentExpression);
 
-            // Catch: var name = (string)result; or string name = result;
+            // Catch: string name = result;
             context.RegisterSyntaxNodeAction(AnalyzeVariableDeclaration,
                 SyntaxKind.VariableDeclaration);
 
-            // Catch: return result; (when method returns T, not Result<T>)
+            // Catch: return result;
             context.RegisterSyntaxNodeAction(AnalyzeReturn,
                 SyntaxKind.ReturnStatement);
 
-            // Catch: SomeMethod(result) where parameter is T
+            // Catch: SomeMethod(result)
             context.RegisterSyntaxNodeAction(AnalyzeArgument,
                 SyntaxKind.Argument);
         }
 
-        // ---------------------------------------------------------------
-        //  string name = result;  /  name = result;
-        // ---------------------------------------------------------------
-
         private static void AnalyzeAssignment(SyntaxNodeAnalysisContext context)
         {
             var assignment = (AssignmentExpressionSyntax)context.Node;
-            CheckImplicitConversion(context, assignment.Right);
+            CheckExpression(context, assignment.Right);
         }
-
-        // ---------------------------------------------------------------
-        //  string name = result;  /  var name = result; (declaration)
-        // ---------------------------------------------------------------
 
         private static void AnalyzeVariableDeclaration(SyntaxNodeAnalysisContext context)
         {
@@ -67,73 +59,93 @@ namespace ArdalisAnalyzer.Analyzer
             {
                 if (variable.Initializer != null)
                 {
-                    CheckImplicitConversion(context, variable.Initializer.Value);
+                    CheckExpression(context, variable.Initializer.Value);
                 }
             }
         }
-
-        // ---------------------------------------------------------------
-        //  return result;
-        // ---------------------------------------------------------------
 
         private static void AnalyzeReturn(SyntaxNodeAnalysisContext context)
         {
             var returnStatement = (ReturnStatementSyntax)context.Node;
             if (returnStatement.Expression != null)
             {
-                CheckImplicitConversion(context, returnStatement.Expression);
+                CheckExpression(context, returnStatement.Expression);
             }
         }
-
-        // ---------------------------------------------------------------
-        //  SomeMethod(result)
-        // ---------------------------------------------------------------
 
         private static void AnalyzeArgument(SyntaxNodeAnalysisContext context)
         {
             var argument = (ArgumentSyntax)context.Node;
-            CheckImplicitConversion(context, argument.Expression);
+            CheckExpression(context, argument.Expression);
+        }
+
+        // ---------------------------------------------------------------
+        //  Entry point: check expression and recurse into ternary branches
+        // ---------------------------------------------------------------
+
+        private static void CheckExpression(
+            SyntaxNodeAnalysisContext context,
+            ExpressionSyntax expression)
+        {
+            // First try the expression itself
+            if (CheckImplicitConversion(context, expression))
+                return;
+
+            // If the expression is a ternary (target-typed conditional),
+            // the compiler resolves the conversion per-branch, not on the whole expression.
+            // We need to inspect WhenTrue and WhenFalse individually.
+            if (expression is ConditionalExpressionSyntax conditional)
+            {
+                CheckExpression(context, conditional.WhenTrue);
+                CheckExpression(context, conditional.WhenFalse);
+                return;
+            }
+
+            // Parenthesized: (result)
+            if (expression is ParenthesizedExpressionSyntax parens)
+            {
+                CheckExpression(context, parens.Expression);
+            }
         }
 
         // ---------------------------------------------------------------
         //  Core: detect implicit conversion from Result<T> to T
+        //  Returns true if a diagnostic was reported
         // ---------------------------------------------------------------
 
-        private static void CheckImplicitConversion(
+        private static bool CheckImplicitConversion(
             SyntaxNodeAnalysisContext context,
             ExpressionSyntax expression)
         {
             var conversion = context.SemanticModel.GetConversion(expression, context.CancellationToken);
 
-            // Must be an implicit user-defined conversion
             if (!conversion.IsImplicit || !conversion.IsUserDefined)
-                return;
+                return false;
 
             var sourceType = context.SemanticModel.GetTypeInfo(expression, context.CancellationToken).Type;
             if (!IsArdalisResultType(sourceType))
-                return;
+                return false;
 
-            // Get the target type (T from Result<T>)
             var namedType = sourceType as INamedTypeSymbol;
             if (namedType == null || !namedType.IsGenericType || namedType.TypeArguments.Length == 0)
-                return;
+                return false;
 
             var innerType = namedType.TypeArguments[0];
 
-            // Check the converted-to type matches T (Result<T> -> T conversion)
             var convertedType = context.SemanticModel.GetTypeInfo(expression, context.CancellationToken).ConvertedType;
             if (!SymbolEqualityComparer.Default.Equals(convertedType, innerType))
-                return;
+                return false;
 
             // Check if guarded
             var resultIdentifier = GetResultIdentifier(expression);
             if (resultIdentifier != null && IsGuarded(expression, resultIdentifier))
-                return;
+                return false;
 
             context.ReportDiagnostic(
                 Diagnostic.Create(Rule, expression.GetLocation(),
                     expression.ToString(),
                     innerType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
+            return true;
         }
     }
 }

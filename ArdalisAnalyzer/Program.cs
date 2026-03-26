@@ -419,8 +419,7 @@ new ExampleRunner()
         var output = "";
         Action<Result<string>> log = r =>
         {
-            if (r.IsSuccess) output = r.Value;
-            else output = "[error]";
+            output = r.IsSuccess ? r.Value : "[error]";
         };
         log(Fake.GetUser(-1));
         return $"Logged: '{output}'";
@@ -430,8 +429,7 @@ new ExampleRunner()
         var output = "";
         Action<Result<string>> log = r =>
         {
-            if (r.IsSuccess) output = r.Value;
-            else output = "[error]";
+            output = r.IsSuccess ? r.Value : "[error]";
         };
         log(Fake.GetUser(1));
         return $"Logged: '{output}'";
