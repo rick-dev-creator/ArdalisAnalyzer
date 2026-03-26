@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.1] - 2026-03-26
+
+### Fixed
+- **NuGet packaging**: Previous versions packaged a stale DLL (v1.0.0) inside the nupkg regardless of the package version. The `$(OutputPath)` reference resolved to an outdated build artifact. Fixed by using a MSBuild target with `$(TargetPath)` that runs after compilation, ensuring the freshly built DLL is always packaged.
+- Added explicit `AssemblyVersion` and `FileVersion` to match package version.
+
 ## [1.2.0] - 2026-03-26
 
 ### Fixed
@@ -34,6 +40,7 @@ All notable changes to this project will be documented in this file.
 - NuGet package configuration.
 - GitHub Actions CI workflow.
 
+[1.2.1]: https://github.com/rick-dev-creator/ArdalisAnalyzer/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/rick-dev-creator/ArdalisAnalyzer/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/rick-dev-creator/ArdalisAnalyzer/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/rick-dev-creator/ArdalisAnalyzer/releases/tag/v1.0.0

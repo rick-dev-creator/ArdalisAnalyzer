@@ -8,7 +8,7 @@
 
     <!-- NuGet package metadata -->
     <PackageId>ArdalisAnalyzer</PackageId>
-    <Version>1.2.0</Version>
+    <Version>1.2.1</Version>
     <Authors>Rick-Dev</Authors>
     <Description>Roslyn analyzer that detects unsafe access to Result&lt;T&gt;.Value from Ardalis.Result without first checking IsSuccess or Status. Prevents NullReferenceException and silent data corruption at compile time.</Description>
     <PackageTags>analyzers;roslyn;ardalis;result;static-analysis</PackageTags>
@@ -23,6 +23,10 @@
     <DevelopmentDependency>true</DevelopmentDependency>
     <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+
+    <!-- Ensure assembly version matches package version -->
+    <AssemblyVersion>1.2.1.0</AssemblyVersion>
+    <FileVersion>1.2.1.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -33,10 +37,15 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.12.0" />
   </ItemGroup>
 
-  <!-- Pack the analyzer DLL into the analyzers folder -->
   <ItemGroup>
     <None Include="..\README.md" Pack="true" PackagePath="\" />
-    <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" />
   </ItemGroup>
+
+  <!-- Use TargetPath (resolved after build) to pack the correct DLL -->
+  <Target Name="_AddAnalyzerToPackage" BeforeTargets="_GetPackageFiles">
+    <ItemGroup>
+      <_PackageFiles Include="$(TargetPath)" PackagePath="analyzers/dotnet/cs" />
+    </ItemGroup>
+  </Target>
 
 </Project>
