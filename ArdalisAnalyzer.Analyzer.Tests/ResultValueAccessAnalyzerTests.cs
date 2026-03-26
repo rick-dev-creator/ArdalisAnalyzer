@@ -844,6 +844,137 @@ public class ResultValueAccessAnalyzerTests
     }
 
     // =================================================================
+    //  SHOULD WARN — Null-conditional (?.) and null-coalescing (??)
+    //  These do NOT check IsSuccess — they only handle null references
+    // =================================================================
+
+    [Fact]
+    public async Task NullConditional_ValueAccess_Warns()
+    {
+        var code = """
+            using Ardalis.Result;
+
+            class Test
+            {
+                void M()
+                {
+                    Result<string> result = Result<string>.Error("fail");
+                    var x = {|#0:result?.Value|};
+                }
+            }
+            """;
+
+        await Verify.VerifyAnalyzerAsync(code,
+            Verify.Diagnostic("ARDRES001").WithLocation(0).WithArguments("result"));
+    }
+
+    [Fact]
+    public async Task NullConditional_ValueWithMemberAccess_Warns()
+    {
+        var code = """
+            using Ardalis.Result;
+
+            class Test
+            {
+                void M()
+                {
+                    Result<string> result = Result<string>.Error("fail");
+                    var x = {|#0:result?.Value?.Length|};
+                }
+            }
+            """;
+
+        await Verify.VerifyAnalyzerAsync(code,
+            Verify.Diagnostic("ARDRES001").WithLocation(0).WithArguments("result"));
+    }
+
+    [Fact]
+    public async Task NullCoalescing_ValueAccess_Warns()
+    {
+        var code = """
+            using Ardalis.Result;
+
+            class Test
+            {
+                void M()
+                {
+                    var result = Result<string>.Error("fail");
+                    var x = {|#0:result.Value|} ?? "default";
+                }
+            }
+            """;
+
+        await Verify.VerifyAnalyzerAsync(code,
+            Verify.Diagnostic("ARDRES001").WithLocation(0).WithArguments("result"));
+    }
+
+    [Fact]
+    public async Task NullConditional_WithNullCoalescing_Warns()
+    {
+        var code = """
+            using Ardalis.Result;
+
+            class Test
+            {
+                void M()
+                {
+                    Result<string> result = Result<string>.Error("fail");
+                    var x = {|#0:result?.Value|} ?? "default";
+                }
+            }
+            """;
+
+        await Verify.VerifyAnalyzerAsync(code,
+            Verify.Diagnostic("ARDRES001").WithLocation(0).WithArguments("result"));
+    }
+
+    // =================================================================
+    //  SHOULD NOT WARN — Null-conditional with proper guard
+    // =================================================================
+
+    [Fact]
+    public async Task NullConditional_WithIsSuccessGuard_NoWarning()
+    {
+        var code = """
+            using Ardalis.Result;
+
+            class Test
+            {
+                void M()
+                {
+                    Result<string> result = Result<string>.Success("ok");
+                    if (result.IsSuccess)
+                    {
+                        var x = result?.Value;
+                    }
+                }
+            }
+            """;
+
+        await Verify.VerifyAnalyzerAsync(code);
+    }
+
+    [Fact]
+    public async Task NullConditional_WithGuardClause_NoWarning()
+    {
+        var code = """
+            using Ardalis.Result;
+
+            class Test
+            {
+                void M()
+                {
+                    Result<string> result = Result<string>.Success("ok");
+                    if (!result.IsSuccess) return;
+                    var x = result?.Value ?? "fallback";
+                }
+            }
+            """;
+
+        await Verify.VerifyAnalyzerAsync(code);
+    }
+
+    // =================================================================
     //  SHOULD NOT WARN — Nested guard in outer scope
     // =================================================================
 

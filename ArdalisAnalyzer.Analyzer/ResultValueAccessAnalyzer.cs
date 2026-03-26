@@ -28,8 +28,17 @@ namespace ArdalisAnalyzer.Analyzer
         {
             context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
             context.EnableConcurrentExecution();
+
+            // result.Value
             context.RegisterSyntaxNodeAction(AnalyzeMemberAccess, SyntaxKind.SimpleMemberAccessExpression);
+
+            // result?.Value
+            context.RegisterSyntaxNodeAction(AnalyzeConditionalAccess, SyntaxKind.ConditionalAccessExpression);
         }
+
+        // ---------------------------------------------------------------
+        //  result.Value
+        // ---------------------------------------------------------------
 
         private static void AnalyzeMemberAccess(SyntaxNodeAnalysisContext context)
         {
@@ -55,6 +64,62 @@ namespace ArdalisAnalyzer.Analyzer
             {
                 context.ReportDiagnostic(
                     Diagnostic.Create(Rule, memberAccess.GetLocation(), resultIdentifier));
+            }
+        }
+
+        // ---------------------------------------------------------------
+        //  result?.Value  /  result?.Value?.Length  /  result?.Value ?? x
+        // ---------------------------------------------------------------
+
+        private static void AnalyzeConditionalAccess(SyntaxNodeAnalysisContext context)
+        {
+            var conditionalAccess = (ConditionalAccessExpressionSyntax)context.Node;
+
+            // Get the innermost WhenNotNull — could be .Value or .Value?.Length
+            var whenNotNull = conditionalAccess.WhenNotNull;
+
+            // Check if .Value is the first member binding: result?.Value
+            MemberBindingExpressionSyntax valueBinding = null;
+
+            if (whenNotNull is MemberBindingExpressionSyntax binding)
+            {
+                valueBinding = binding;
+            }
+            // result?.Value?.Length or result?.Value.Length
+            else if (whenNotNull is ConditionalAccessExpressionSyntax nested &&
+                     nested.Expression is MemberBindingExpressionSyntax nestedBinding)
+            {
+                valueBinding = nestedBinding;
+            }
+            else if (whenNotNull is MemberAccessExpressionSyntax ma &&
+                     ma.Expression is MemberBindingExpressionSyntax maBinding)
+            {
+                valueBinding = maBinding;
+            }
+            // result?.Value ?? "default"  — the ?? wraps the conditional access at a higher level,
+            // so the WhenNotNull is still a MemberBindingExpression (handled above)
+
+            if (valueBinding == null || valueBinding.Name.Identifier.Text != "Value")
+                return;
+
+            // Check if the expression (left of ?.) is a Result type
+            var typeInfo = context.SemanticModel.GetTypeInfo(conditionalAccess.Expression, context.CancellationToken);
+            if (!IsArdalisResultType(typeInfo.Type))
+                return;
+
+            var resultIdentifier = GetResultIdentifier(conditionalAccess.Expression);
+
+            if (resultIdentifier == null)
+            {
+                context.ReportDiagnostic(
+                    Diagnostic.Create(Rule, conditionalAccess.GetLocation(), conditionalAccess.Expression));
+                return;
+            }
+
+            if (!IsGuarded(conditionalAccess, resultIdentifier))
+            {
+                context.ReportDiagnostic(
+                    Diagnostic.Create(Rule, conditionalAccess.GetLocation(), resultIdentifier));
             }
         }
     }
