@@ -45,6 +45,18 @@ var names = results.Select(r => r.Value).ToList();
 // ["Alice", null, "Bob", null] — nulls from failed lookups
 ```
 
+### Example: Implicit Conversion — The Invisible Bug
+
+`Ardalis.Result<T>` defines an `implicit operator T` that silently extracts `.Value`. This means you can assign a `Result<T>` to a `T` variable without any compiler warning — no `.Value` access is visible in the code:
+
+```csharp
+Result<string> result = GetUser(-1);
+string name = result;  // compiles fine — implicit conversion extracts Value
+// name is null, no exception, no warning
+```
+
+This is arguably more dangerous than `.Value` because the developer may not even realize a conversion is happening.
+
 ### Example: Chain Extensions That Hide the Problem
 
 A common pattern is to create functional-style extensions like `Then`, `Bind`, or `Map` that chain operations on `Result<T>`. If these extensions access `.Value` internally without checking status, errors propagate silently:
@@ -64,9 +76,16 @@ var upper = GetUser(-1).Then(name => name.ToUpper());
 
 ## The Solution
 
-**ARDRES001** is a Roslyn analyzer that performs **control flow analysis** to detect every `.Value` access on `Result<T>` that is not preceded by a status check. It catches both direct access and access wrapped inside extension methods, LINQ lambdas, delegates, and chain patterns.
+This package includes two Roslyn analyzer rules:
+
+- **ARDRES001** — Detects `.Value` access on `Result<T>` without a prior status check
+- **ARDRES002** — Detects implicit conversion from `Result<T>` to `T` without a prior status check
+
+Both perform **control flow analysis**, catching violations in direct code, extension methods, LINQ lambdas, delegates, and chain patterns.
 
 ### How It Works
+
+#### ARDRES001 — Value Access
 
 The analyzer registers on every `SimpleMemberAccessExpression` in the syntax tree. When it finds a `.Value` access:
 
@@ -86,6 +105,16 @@ The analyzer registers on every `SimpleMemberAccessExpression` in the syntax tre
 
 If none of these guards are found, the analyzer reports **ARDRES001**.
 
+#### ARDRES002 — Implicit Conversion
+
+The analyzer registers on variable declarations, assignments, return statements, and method arguments. When it detects an implicit user-defined conversion:
+
+1. **Source type check** — Verifies the source is `Ardalis.Result.Result<T>`
+2. **Conversion direction** — Confirms it's `Result<T>` → `T` (not the safe `T` → `Result<T>` direction)
+3. **Guard check** — Uses the same flow analysis as ARDRES001
+
+If unguarded, the analyzer reports **ARDRES002**.
+
 ### What It Catches
 
 | Scenario | Detected? |
@@ -100,6 +129,10 @@ If none of these guards are found, the analyzer reports **ARDRES001**.
 | `Func<Result<T>, T> f = r => r.Value` — delegate | Yes |
 | `(r1.Value, r2.Value)` — tuple wrapping | Yes |
 | Check on wrong variable: `if (r1.IsSuccess) { r2.Value }` | Yes |
+| `string name = result;` — implicit conversion | Yes |
+| `return result;` (method returns `T`) — implicit conversion | Yes |
+| `Process(result)` (param is `T`) — implicit conversion | Yes |
+| `string name = GetUser();` — inline implicit conversion | Yes |
 
 ### What It Allows (No False Positives)
 
@@ -113,6 +146,8 @@ If none of these guards are found, the analyzer reports **ARDRES001**.
 | `result.Status switch { Ok => result.Value }` | No |
 | `result.IsSuccess && result.Value.Length > 0` | No |
 | `nullable.Value` / `myObj.Value` — non-Ardalis types | No |
+| `return "hello";` (`T` → `Result<T>` direction) | No |
+| Guarded implicit: `if (IsSuccess) { string s = result; }` | No |
 
 ## Configuration
 
@@ -122,9 +157,10 @@ The default severity is **warning**. To change it, add an `.editorconfig` to you
 [*.cs]
 # Options: error | warning | suggestion | none
 dotnet_diagnostic.ARDRES001.severity = error
+dotnet_diagnostic.ARDRES002.severity = error
 ```
 
-Setting it to `error` breaks the build on any unguarded `.Value` access — enforcing safe usage at compile time.
+Setting them to `error` breaks the build on any unguarded `.Value` access or implicit conversion — enforcing safe usage at compile time.
 
 ## Project Structure
 

@@ -1,2 +1,3 @@
 [*.cs]
 dotnet_diagnostic.ARDRES001.severity = error
+dotnet_diagnostic.ARDRES002.severity = error
