@@ -286,6 +286,133 @@ public class ResultImplicitConversionValueObjectTests
         await Verify.VerifyAnalyzerAsync(code);
     }
 
+    // =================================================================
+    //  SHOULD WARN — Object initializer
+    // =================================================================
+
+    [Fact]
+    public async Task ValueObject_ObjectInitializer_ImplicitConversion_Warns()
+    {
+        var code = """
+            using Ardalis.Result;
+
+            class Retailer
+            {
+                public string Name { get; }
+                private Retailer(string name) => Name = name;
+                public static Result<Retailer> Create(string value) =>
+                    Result<Retailer>.Success(new Retailer(value));
+            }
+
+            class Order
+            {
+                public Retailer Retailer { get; set; }
+            }
+
+            class Test
+            {
+                void M()
+                {
+                    var order = new Order
+                    {
+                        Retailer = {|#0:Retailer.Create("x")|}
+                    };
+                }
+            }
+            """;
+
+        await Verify.VerifyAnalyzerAsync(code,
+            Verify.Diagnostic("ARDRES002")
+                .WithLocation(0)
+                .WithArguments("Retailer.Create(\"x\")", "Retailer"));
+    }
+
+    [Fact]
+    public async Task ValueObject_ObjectInitializer_MultipleProps_Warns()
+    {
+        var code = """
+            using Ardalis.Result;
+
+            class Email
+            {
+                public string Address { get; }
+                private Email(string a) => Address = a;
+                public static Result<Email> Create(string v) => Result<Email>.Success(new Email(v));
+            }
+
+            class Phone
+            {
+                public string Number { get; }
+                private Phone(string n) => Number = n;
+                public static Result<Phone> Create(string v) => Result<Phone>.Success(new Phone(v));
+            }
+
+            class Contact
+            {
+                public Email Email { get; set; }
+                public Phone Phone { get; set; }
+            }
+
+            class Test
+            {
+                void M()
+                {
+                    var c = new Contact
+                    {
+                        Email = {|#0:Email.Create("a@b.com")|},
+                        Phone = {|#1:Phone.Create("123456")|}
+                    };
+                }
+            }
+            """;
+
+        await Verify.VerifyAnalyzerAsync(code,
+            Verify.Diagnostic("ARDRES002")
+                .WithLocation(0).WithArguments("Email.Create(\"a@b.com\")", "Email"),
+            Verify.Diagnostic("ARDRES002")
+                .WithLocation(1).WithArguments("Phone.Create(\"123456\")", "Phone"));
+    }
+
+    [Fact]
+    public async Task ValueObject_ObjectInitializer_WithTernary_Warns()
+    {
+        var code = """
+            using Ardalis.Result;
+
+            class Retailer
+            {
+                public string Name { get; }
+                private Retailer(string name) => Name = name;
+                public static Result<Retailer> Create(string value) =>
+                    Result<Retailer>.Success(new Retailer(value));
+            }
+
+            class OrderEntity { public string? Retailer { get; set; } }
+
+            class Order
+            {
+                public Retailer? Retailer { get; set; }
+            }
+
+            class Test
+            {
+                void M()
+                {
+                    var entity = new OrderEntity { Retailer = "x" };
+                    var order = new Order
+                    {
+                        Retailer = {|#0:entity.Retailer is not null ? Retailer.Create(entity.Retailer) : null|}
+                    };
+                }
+            }
+            """;
+
+        await Verify.VerifyAnalyzerAsync(code,
+            Verify.Diagnostic("ARDRES002")
+                .WithLocation(0)
+                .WithArguments("entity.Retailer is not null ? Retailer.Create(entity.Retailer) : null", "Retailer"));
+    }
+
     [Fact]
     public async Task ValueObject_CreateWithTernaryOnResult_NoWarning()
     {
