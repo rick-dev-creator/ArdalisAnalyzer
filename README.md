@@ -7,7 +7,7 @@ A Roslyn analyzer that detects unsafe access to `Result<T>.Value` from [Ardalis.
 ## Installation
 
 ```bash
-dotnet add package ArdalisAnalyzer --version 1.1.0
+dotnet add package ArdalisAnalyzer --version 1.2.0
 ```
 
 ## The Problem
@@ -177,13 +177,13 @@ ArdalisAnalyzer/
 Install via NuGet:
 
 ```bash
-dotnet add package ArdalisAnalyzer --version 1.1.0
+dotnet add package ArdalisAnalyzer --version 1.2.0
 ```
 
 Or add directly to your `.csproj`:
 
 ```xml
-<PackageReference Include="ArdalisAnalyzer" Version="1.1.0" />
+<PackageReference Include="ArdalisAnalyzer" Version="1.2.0" />
 ```
 
 For local development, you can reference the analyzer project instead:

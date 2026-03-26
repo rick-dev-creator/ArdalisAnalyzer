@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2026-03-26
+
+### Fixed
+- **ARDRES002**: Fix detection of implicit conversions inside target-typed conditional expressions (C# 9+). With target-typed ternaries, the compiler resolves the implicit conversion per-branch, not on the whole expression. The analyzer now recurses into `WhenTrue`/`WhenFalse` branches to detect `Result<T>` to `T` conversions inside each branch.
+
+### Added
+- Value Object tests: `sealed record` with nullable property and ternary null-check pattern.
+- 8 new unit tests for Value Object implicit conversion scenarios.
+
 ## [1.1.0] - 2026-03-26
 
 ### Added
@@ -25,5 +34,6 @@ All notable changes to this project will be documented in this file.
 - NuGet package configuration.
 - GitHub Actions CI workflow.
 
+[1.2.0]: https://github.com/rick-dev-creator/ArdalisAnalyzer/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/rick-dev-creator/ArdalisAnalyzer/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/rick-dev-creator/ArdalisAnalyzer/releases/tag/v1.0.0
