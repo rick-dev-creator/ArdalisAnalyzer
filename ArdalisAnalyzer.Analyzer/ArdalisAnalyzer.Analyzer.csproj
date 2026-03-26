@@ -13,7 +13,8 @@
     <Description>Roslyn analyzer that detects unsafe access to Result&lt;T&gt;.Value from Ardalis.Result without first checking IsSuccess or Status. Prevents NullReferenceException and silent data corruption at compile time.</Description>
     <PackageTags>analyzers;roslyn;ardalis;result;static-analysis</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/yourusername/ArdalisAnalyzer</PackageProjectUrl>
+    <PackageProjectUrl>https://github.com/rick-dev-creator/ArdalisAnalyzer</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/rick-dev-creator/ArdalisAnalyzer</RepositoryUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryType>git</RepositoryType>
 
