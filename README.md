@@ -1,6 +1,14 @@
 # ArdalisAnalyzer
 
+[![NuGet](https://img.shields.io/nuget/v/ArdalisAnalyzer.svg)](https://www.nuget.org/packages/ArdalisAnalyzer/)
+
 A Roslyn analyzer that detects unsafe access to `Result<T>.Value` from [Ardalis.Result](https://github.com/ardalis/Result) without first verifying the result status.
+
+## Installation
+
+```bash
+dotnet add package ArdalisAnalyzer --version 1.0.0
+```
 
 ## The Problem
 
@@ -130,21 +138,24 @@ ArdalisAnalyzer/
 
 ## Usage
 
-Reference the analyzer project in your `.csproj`:
+Install via NuGet:
+
+```bash
+dotnet add package ArdalisAnalyzer --version 1.0.0
+```
+
+Or add directly to your `.csproj`:
+
+```xml
+<PackageReference Include="ArdalisAnalyzer" Version="1.0.0" />
+```
+
+For local development, you can reference the analyzer project instead:
 
 ```xml
 <ProjectReference Include="path/to/ArdalisAnalyzer.Analyzer.csproj"
                   OutputItemType="Analyzer"
                   ReferenceOutputAssembly="false" />
-```
-
-Or, once packaged as a NuGet:
-
-```xml
-<PackageReference Include="ArdalisAnalyzer.Analyzer" Version="1.0.0">
-  <PrivateAssets>all</PrivateAssets>
-  <IncludeAssets>analyzers</IncludeAssets>
-</PackageReference>
 ```
 
 ## Notes
