@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="ArdalisAnalyzer.Analyzer.Tests.LanguageExt/ArdalisAnalyzer.Analyzer.Tests.LanguageExt.csproj" />
+  <Project Path="ArdalisAnalyzer.Analyzer.Tests/ArdalisAnalyzer.Analyzer.Tests.csproj" />
+  <Project Path="ArdalisAnalyzer.Analyzer/ArdalisAnalyzer.Analyzer.csproj" />
+  <Project Path="ArdalisAnalyzer/ArdalisAnalyzer.csproj" />
+</Solution>
